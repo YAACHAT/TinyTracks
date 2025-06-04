@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "84591744178",
+    "project_id": "tinytracks-349ae",
+    "storage_bucket": "tinytracks-349ae.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:84591744178:android:56c93ea0b6aaff454025ab",
+        "android_client_info": {
+          "package_name": "com.example.tiny_tracks"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAGLdy4lNjvSgXsCnZefJDHFx_5VInnx5E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

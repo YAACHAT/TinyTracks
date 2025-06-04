@@ -1,0 +1,127 @@
+name: tiny_tracks
+description: "A new Flutter project."
+publish_to: 'none' 
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.7.2
+
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  flutter_svg: ^2.0.1
+  flutter_native_splash: ^2.4.6
+  intl: ^0.20.2
+  image_picker: ^1.1.2
+  table_calendar: ^3.0.0
+  file_selector: ^1.0.3
+  provider: ^6.1.5
+  firebase_core: ^3.13.0
+  firebase_auth: ^5.5.3
+  cloud_firestore: ^5.6.7
+  firebase_storage: ^12.4.5
+  firebase_messaging: ^15.0.0
+  flutter_inner_shadow: ^0.0.1
+  google_sign_in: ^6.3.0
+  supabase_flutter: ^2.9.0
+  path: ^1.9.1
+  get_it: ^8.0.3
+  gotrue: ^2.12.0
+  
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_launcher_icons: ^0.14.3
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/vectorlogin/
+    - assets/images/
+    - assets/fonts/
+    - assets/images/playstore.png
+    - assets/images/splash.png
+    - assets/images/footprint.svg
+    - assets/images/googlebutton.svg
+    - assets/images/google.svg
+    - assets/images/nextpage.svg
+    - assets/images/previouspage.svg
+    - assets/images/welcomefeet.svg
+    - assets/images/naira.svg
+    - assets/images/file.svg
+    - assets/images/naira2.svg
+    - assets/images/piggy.svg
+    - assets/images/save.svg
+    - assets/images/addB.svg
+    - assets/images/feeding.svg
+    - assets/images/sleep.svg
+    - assets/images/DC.svg
+    - assets/images/milestones.svg
+    - assets/images/health.svg
+    - assets/images/caregiver.svg
+    - assets/images/hygiene.svg
+    - assets/images/growth.svg
+    - assets/images/addT.svg
+    - assets/images/allegy.svg
+    - assets/images/restriction.svg
+    - assets/images/fav.svg
+    - assets/images/special.svg
+    - assets/images/sleep2.svg
+    - assets/images/care.svg
+    - assets/images/bath.svg
+    - assets/images/nail.svg
+    - assets/images/cut.svg
+    - assets/images/make.svg
+    - assets/images/weight.svg
+    - assets/images/height.svg
+    - assets/images/HC.svg
+    - assets/images/inject.svg
+    - assets/images/symp.svg
+    - assets/images/doctor.svg
+    - assets/images/pills.svg
+    - assets/images/temp.svg
+    - assets/images/share.svg
+    
+
+  
+  fonts:
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins-SemiBold.ttf
+        - asset: assets/fonts/Poppins-SemiBoldItalic.ttf
+        - asset: assets/fonts/Poppins-Regular.ttf
+        - asset: assets/fonts/Poppins-ExtraBold.ttf
+        - asset: assets/fonts/Poppins-ThinItalic.ttf
+        - asset: assets/fonts/Poppins-Bold.ttf
+        - asset: assets/fonts/Poppins-SemiBoldItalic.ttf
+        - asset: assets/fonts/Poppins-Light.ttf
+          weight: 200
+         
+    - family: Nunito Sans
+      fonts:
+        - asset: assets/fonts/NunitoSans-Italic-VariableFont_YTLC,opsz,wdth,wght.ttf
+        - asset: assets/fonts/NunitoSans-VariableFont_YTLC,opsz,wdth,wght.ttf    
+          weight: 200
+
+    - family: Inter
+      fonts:   
+        - asset: assets/fonts/Inter-VariableFont_opsz,wght.ttf
+        - asset: assets/fonts/Inter-Italic-VariableFont_opsz,wght.ttf   
+          weight: 400
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/playstore.png"
+  remove_alpha_ios: true
+
+flutter_native_splash:
+  color: "#DFC2FF"
+  image: assets/images/splash.png
+  fullscreen: true
+  android_gravity: fill
+  ios_content_mode: scaleToFill
