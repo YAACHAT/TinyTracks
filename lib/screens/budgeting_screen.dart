@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:tiny_tracks/widgets/custom_nav_bar.dart'; 
+import 'package:tiny_tracks/widgets/custom_nav_bar.dart';
+import '../services/budgeting_service.dart';
+import '../services/storage_service.dart'; 
 
 class BudgetingScreen extends StatefulWidget {
   const BudgetingScreen({super.key});
@@ -14,26 +16,102 @@ class _BudgetingScreenState extends State<BudgetingScreen> {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController amountController = TextEditingController();
 
-  List<Map<String, String>> expenses = [];
-  Set<String> selectedCategories = {}; // Track selected categories
+double get totalExpenses => double.tryParse(_calculateExpenses().replaceAll('₦', '')) ?? 0;
+double get totalAllocation => double.tryParse(totalAllocationController.text) ?? 0;
+double get leftToSpend => totalAllocation - totalExpenses;
+bool get isBudgetExhausted => leftToSpend <= 0;
+ 
+final BudgetingService _budgetingService = BudgetingService();
+final StorageService _storageService = StorageService();
 
-  void addExpense() {
-    final name = nameController.text.trim();
-    final amount = amountController.text.trim();
-    if (name.isNotEmpty && amount.isNotEmpty) {
-      setState(() {
-        expenses.add({'name': name, 'amount': amount});
-        nameController.clear();
-        amountController.clear();
-      });
-    }
+  List<Map<String, String>> expenses = [];
+  Set<String> selectedCategories = {}; 
+
+void addExpense() {
+  final name = nameController.text.trim();
+  final amount = amountController.text.trim();
+  
+  if (name.isEmpty || amount.isEmpty) return;
+
+  final expenseAmount = double.tryParse(amount) ?? 0;
+  
+  // Check if adding this expense would exceed the budget
+  if (totalExpenses + expenseAmount > totalAllocation) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Cannot add expense: Would exceed total allocation'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
   }
+
+  if (totalAllocation <= 0) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Please set a total allocation first'),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
+
+  setState(() {
+    expenses.add({'name': name, 'amount': amount});
+    nameController.clear();
+    amountController.clear();
+  });
+}
 
   void removeExpense(int index) {
     setState(() {
       expenses.removeAt(index);
     });
   }
+
+@override
+void initState() {
+  super.initState();
+  _loadSavedData();
+}
+
+Future<void> _loadSavedData() async {
+  try {
+    // First 
+    final savedAllocation = await _storageService.getTotalAllocation();
+    final savedExpenses = await _storageService.getExpensesList();
+    final savedCategories = await _storageService.getSelectedCategories();
+
+    // budget from database
+    final latestBudget = await _budgetingService.getLatestBudget();
+
+    if (!mounted) return;
+
+    setState(() {
+      // database values if they exist
+      if (latestBudget != null) {
+        totalAllocationController.text = latestBudget['total_allocation'].toString();
+        expenses = List<Map<String, String>>.from(latestBudget['expense_list']);
+        selectedCategories = Set<String>.from(latestBudget['selected_categories']);
+      } else if (savedAllocation != null) {
+        // local storage
+        totalAllocationController.text = savedAllocation;
+        expenses = savedExpenses;
+        selectedCategories = savedCategories;
+      }
+    });
+  } catch (e) {
+    debugPrint('Error loading saved data: $e');
+  }
+}
+
+@override
+void dispose() {
+  totalAllocationController.dispose();
+  nameController.dispose();
+  amountController.dispose();
+  super.dispose();
+}
 
   @override
   Widget build(BuildContext context) {
@@ -160,8 +238,14 @@ class _BudgetingScreenState extends State<BudgetingScreen> {
               _buildInputField(amountController, 'Enter amount', isNumeric: true),
               const SizedBox(height: 12),
               IconButton(
-                icon: SvgPicture.asset('assets/images/addB.svg', height: 40),
-                onPressed: addExpense,
+                icon: SvgPicture.asset(
+                  'assets/images/addB.svg',
+                  height: 40,
+                  colorFilter: isBudgetExhausted 
+                      ? const ColorFilter.mode(Colors.grey, BlendMode.srcIn)
+                      : null,
+                ),
+                onPressed: isBudgetExhausted ? null : addExpense,
               ),
               const SizedBox(height: 16),
               const Text(
@@ -212,18 +296,63 @@ class _BudgetingScreenState extends State<BudgetingScreen> {
                 alignment: Alignment.centerRight,
                 child: IconButton(
                   icon: SvgPicture.asset('assets/images/save.svg', height: 40),
-                  onPressed: () {
-                    final totalAlloc = totalAllocationController.text;
-                    final totalSpent = _calculateExpenses();
-                    debugPrint("Saved Expenses: $expenses");
-                    debugPrint("Total Allocation: $totalAlloc");
-                    debugPrint("Total Expense: $totalSpent");
+                onPressed: () async {
+                  final scaffoldMessenger = ScaffoldMessenger.of(context);
+                  
+                  final totalAlloc = totalAllocationController.text;
+                  if (totalAlloc.isEmpty) {
+                    scaffoldMessenger.showSnackBar(
+                      const SnackBar(content: Text('Please enter total allocation')),
+                    );
+                    return;
+                  }
 
-                    setState(() {
-                      expenses.clear();
-                      selectedCategories.clear();
-                    });
-                  },
+                  if (selectedCategories.isEmpty) {
+                    scaffoldMessenger.showSnackBar(
+                      const SnackBar(content: Text('Please select at least one category')),
+                    );
+                    return;
+                  }
+
+                  try {
+                    // Save current values to storage
+                    await _storageService.saveBudgetData(
+                      totalAllocation: totalAlloc,
+                      expenses: expenses,
+                      categories: selectedCategories,
+                    );
+
+                    // Save to database
+                    final budgetId = await _budgetingService.createBudget(
+                      totalAllocation: totalAlloc,
+                      expenseList: expenses,
+                      selectedCategories: selectedCategories,
+                      totalExpenses: _calculateExpenses(),
+                      leftToSpend: _calculateLeftToSpend(),
+                    );
+
+                    if (!mounted) return;
+
+                    if (budgetId != null) {
+                      setState(() {
+                        expenses.clear();
+                        selectedCategories.clear();
+                      });
+
+                      scaffoldMessenger.showSnackBar(
+                        const SnackBar(content: Text('Budget saved successfully!')),
+                      );
+                    } else {
+                      throw Exception('Failed to save budget');
+                    }
+                  } catch (e) {
+                    if (!mounted) return;
+                    scaffoldMessenger.showSnackBar(
+                      const SnackBar(content: Text('Failed to save budget. Please try again.')),
+                    );
+                  }
+                },
+                  tooltip: 'Save Budget',
                 ),
               ),
             ],
@@ -275,63 +404,71 @@ class _BudgetingScreenState extends State<BudgetingScreen> {
     return '₦${(totalAlloc - spent).toStringAsFixed(2)}';
   }
 
-  Widget _buildBoardSection(int index) {
-    final titles = ['Total Allocation', 'Expenses', 'Left to spend'];
-    return Expanded(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            titles[index],
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontFamily: 'Poppins',
-              fontWeight: FontWeight.w600,
-              fontStyle: FontStyle.italic,
-              fontSize: 15,
-            ),
+Widget _buildBoardSection(int index) {
+  final titles = ['Total Allocation', 'Expenses', 'Left to spend'];
+  final values = [
+    totalAllocation.toStringAsFixed(2),
+    totalExpenses.toStringAsFixed(2),
+    leftToSpend.toStringAsFixed(2)
+  ];
+
+  return Expanded(
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          titles[index],
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            fontFamily: 'Poppins',
+            fontWeight: FontWeight.w600,
+            fontStyle: FontStyle.italic,
+            fontSize: 15,
           ),
-          const SizedBox(height: 8),
-          SvgPicture.asset('assets/images/naira2.svg', height: 24),
-          const SizedBox(height: 8),
-          Container(
-            width: 98,
-            height: 29,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: const Color.fromARGB(255, 80, 79, 79)),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: Center(
-              child: index == 0
-                  ? TextField(
-                      controller: totalAllocationController,
-                      keyboardType: TextInputType.number,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 13,
-                        height: 1.2,
-                      ),
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        isCollapsed: true,
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    )
-                  : Text(
-                      index == 1 ? _calculateExpenses() : _calculateLeftToSpend(),
-                      style: const TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 13,
-                      ),
+        ),
+        const SizedBox(height: 8),
+        SvgPicture.asset('assets/images/naira2.svg', height: 24),
+        const SizedBox(height: 8),
+        Container(
+          width: 98,
+          height: 29,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(color: const Color.fromARGB(255, 80, 79, 79)),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Center(
+            child: index == 0
+                ? TextField(
+                    controller: totalAllocationController,
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 13,
+                      height: 1.2,
                     ),
-            ),
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      isCollapsed: true,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    onChanged: (value) => setState(() {}), // Trigger rebuild on change
+                  )
+                : Text(
+                    '₦${values[index]}',
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 13,
+                      color: index == 2 && leftToSpend <= 0 ? Colors.red : null,
+                    ),
+                  ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
 
   Widget _buildDivider() {
     return Container(
